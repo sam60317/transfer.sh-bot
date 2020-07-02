@@ -6,10 +6,13 @@ import time
 import datetime
 import aiohttp
 import asyncio
+import bitly_api
 
 api_id = int("API ID")
 api_hash = "API HASH"
 bot_token = "BOT TOKEN"
+
+bitly = bitly_api.Connection(access_token='access_token')
 
 download_path = "Downloads/"
 
@@ -20,6 +23,19 @@ bot = TelegramClient('Uploader bot', api_id, api_hash).start(bot_token=bot_token
 async def start(event):
     """Send a message when the command /start is issued."""
     await event.respond('Hi!\nSent any file or direct download link to upload and get the transfer.sh download link')
+    raise events.StopPropagation
+
+@bot.on(events.NewMessage(pattern='/s'))
+async def s(event):
+    tmp = event.message.message.split(' ',1)
+    if len(tmp) == 1:
+        await event.respond('Error!!')
+    else:
+        try:
+            await event.respond(f"**Shorten:** {bitly.shorten(tmp[1])['url']}")
+        except Exception as e:
+            print(e)
+            await event.respond(f"**Error:** {e}")
     raise events.StopPropagation
 
 @bot.on(events.NewMessage)
@@ -46,8 +62,9 @@ async def echo(update):
         try:
             await msg.edit("Download finish!\n\n**Now uploading...**")
             download_link, final_date, size = await send_to_transfersh_async(file_path, msg)
+            shorten_link = bitly.shorten(download_link)
             name = os.path.basename(file_path)
-            await msg.edit(f"**Name: **`{name}`\n**Size:** `{size}`\n**Link:** {download_link}")
+            await msg.edit(f"**Name: **`{name}`\n**Size:** `{size}`\n**Link:** {download_link}\n**Shorten:** {shorten_link['url']}")
         except Exception as e:
             print(e)
             await msg.edit(f"Uploading Failed\n\n**Error:** {e}")
